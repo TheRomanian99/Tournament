@@ -4,35 +4,35 @@
 #
 
 import psycopg2
+import bleach
 
 
 def connect():
-    """Connect to the PostgreSQL database.  Returns a database connection."""
-    return psycopg2.connect("dbname=tournament")
+    """Connect to the PostgreSQL database and creates a cursor.
+    Returns a database connection and a cursor.
+    """
+    db = psycopg2.connect("dbname=tournament")
+    c = db.cursor()
+    return db, c
 
 
 def deleteMatches():
     """Remove all the match records from the database."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('DELETE FROM matches;')
     db.commit()
-    print 'All match records have been removed from the database'
     db.close
 
 def deletePlayers():
     """Remove all the player records from the database."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('DELETE FROM players;')
     db.commit()
-    print 'All player records have been removed from the database'
     db.close
 
 def countPlayers():
     """Returns the number of players currently registered."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('SELECT COUNT(*) FROM players;')
     count = c.fetchall()
     return count[0][0]
@@ -47,9 +47,10 @@ def registerPlayer(name):
     Args:
       name: the player's full name (need not be unique).
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('INSERT INTO players (name) VALUES (%s);', (name,))
+    connect()
+    query = 'INSERT INTO players (name) VALUES (%s);'
+    data = (bleach.clean(name),)
+    c.execute(query, data)
     db.commit()
     db.close
 
@@ -67,8 +68,7 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('SELECT * FROM standings;')
     rows = c.fetchall()
     return rows
@@ -82,9 +82,10 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('INSERT INTO matches (winner, loser) VALUES (%s, %s);', (winner, loser,))
+    connect()
+    query = 'INSERT INTO matches (winner, loser) VALUES (%s, %s);'
+    data = (bleach.clean(winner), bleach.clean(loser),)
+    c.execute(query, data)
     db.commit()
     db.close
      
@@ -105,8 +106,7 @@ def swissPairings():
         name2: the second player's name
     """
     
-    db = connect()
-    c = db.cursor()
+    connect()
 
     def getIds():
         """Returns a list of the ids taking part in a tournament in the order
@@ -121,7 +121,9 @@ def swissPairings():
 
     def getWins(player):
         """Returns the number of wins a player has in a tournament"""
-        c.execute('SELECT wins FROM standings WHERE id = %s;', (player,))
+        query = 'SELECT wins FROM standings WHERE id = %s;'
+        data = (player,)
+        c.execute(query, data)
         row = c.fetchone()
         return row[0]
 
@@ -129,7 +131,9 @@ def swissPairings():
         """Returns a list of the ids taking part in a tournament that have
         a certain number of wins difference
         """
-        c.execute('SELECT id FROM standings WHERE wins = %s;', (wins + winDiff,))
+        query = 'SELECT id FROM standings WHERE wins = %s;'
+        data = (wins + winDiff,)
+        c.execute(query, data)
         rows = c.fetchall()
         return rows
     
@@ -140,11 +144,11 @@ def swissPairings():
         playedOpponents = {}
         ids = getIds()
         for x in ids:
-            c.execute('SELECT opponent FROM opponents WHERE player = %s;', (x,))
+            query = 'SELECT opponent FROM opponents WHERE player = %s;'
+            data = (x,)
+            c.execute(query, data)
             rows = c.fetchall()
-            playedOpponents[x] = []
-            for row in rows:
-                playedOpponents[x].append(row[0])
+            playedOpponents[x] = [row[0] for row in rows]
         return playedOpponents
 
     def getPlayerNames():
@@ -215,6 +219,7 @@ def swissPairings():
             n2 -= 1
         count += 1
     return pairs
+    db.close
 
     
             

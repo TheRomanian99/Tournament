@@ -4,33 +4,35 @@
 #
 
 import psycopg2
+import bleach
 
 
 def connect():
-    """Connect to the PostgreSQL database.  Returns a database connection."""
-    return psycopg2.connect("dbname=tournament")
+    """Connect to the PostgreSQL database and creates a cursor.
+    Returns a database connection and a cursor.
+    """
+    db = psycopg2.connect("dbname=tournament")
+    c = db.cursor()
+    return db, c
 
 
 def deleteMatches():
     """Remove all the match records from the database."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('DELETE FROM matches;')
     db.commit()
     db.close
 
 def deletePlayers():
     """Remove all the player records from the database."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('DELETE FROM players;')
     db.commit()
     db.close
 
 def countPlayers():
     """Returns the number of players currently registered."""
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('SELECT COUNT(*) FROM players;')
     count = c.fetchall()
     return count[0][0]
@@ -45,34 +47,47 @@ def registerPlayer(name):
     Args:
       name: the player's full name (need not be unique).
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('INSERT INTO players (name) VALUES (%s);', (name,))
+    connect()
+    query = 'INSERT INTO players (name) VALUES (%s);'
+    data = (bleach.clean(name),)
+    c.execute(query, data)
     db.commit()
     db.close
 
 def registerTournament():
-
     """Adds a tournament to the tournament database.
 
     The database assigns a unique serial id number for the tournament.
     """
-    db = connect()
-    c = db.cursor()
+    connect()
     c.execute('INSERT INTO tournaments DEFAULT VALUES;')
+    db.commit()
+    db.close
+
+def deleteTournament(tournament):
+    """Delets a tournament along with the matches played.
+
+    Args:
+        tournament: the id number of the tournament
+    """
+    connect()
+    query = 'DELETE FROM tournaments WHERE id = %s;'
+    data = (bleach.clean(tournament),)
+    c.execute(query, data)
     db.commit()
     db.close
 
 def registerTournamentPlayer(player, tournament):
     """Adds a player to a tournament.
 
-    Atgs:
+    Args:
         player: the id number of the player
         tournament: the id number of the tournament
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('INSERT INTO tournament_participants (player_id, tournament_id) VALUES (%s, %s);', (player, tournament,))
+    connect()
+    query = 'INSERT INTO tournament_participants (player_id, tournament_id) VALUES (%s, %s);'
+    data = (bleach.clean(player), bleach.clean(tournament),)
+    c.execute(query, data)
     db.commit()
     db.close
 
@@ -84,9 +99,10 @@ def reportTournamentWinner(winner, tournament):
       winner: the id number of the winning player
       tournament: the id number of the tournament
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('UPDATE tournaments SET winner = %s WHERE id = %s;', (winner, tournament,))
+    connect()
+    query = 'UPDATE tournaments SET winner = %s WHERE id = %s;'
+    data = (bleach.clean(winner), bleach.clean(tournament),)
+    c.execute(query, data)
     db.commit()
     db.close
 
@@ -106,9 +122,10 @@ def playerStandings(tournament):
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
-    db = connect()
-    c = db.cursor()
-    c.execute('SELECT id, name, wins, matches FROM standings WHERE tournament_id = %s;', (tournament,))
+    connect()
+    query = 'SELECT id, name, wins, matches FROM standings WHERE tournament_id = %s;'
+    data = (bleach.clean(tournament),)
+    c.execute(query, data)
     rows = c.fetchall()
     return rows
     db.close
@@ -119,15 +136,18 @@ def reportMatch(id1, id2, result, tournament):
     Args:
       player1:  the id number of the 1st player
       player2:  the id number of the 2nd player
-      winner: the id number of the winning player (or 'tie' if game ended in a tie)
+      result: the id number of the winning player (or 'tie' if game ended in a tie)
       tournament: the id number of the tournament being held
     """
-    db = connect()
-    c = db.cursor()
+    connect()
     if str(result).lower() == 'tie':
-        c.execute("""INSERT INTO matches (id1, id2, tournament_id) VALUES (%s, %s, %s);""", (id1, id2, tournament,))
+        query = "INSERT INTO matches (id1, id2, tournament_id) VALUES (%s, %s, %s);"
+        data = (bleach.clean(id1), bleach.clean(id2), bleach.clean(tournament),)
+        c.execute(query, data)
     else:
-        c.execute("""INSERT INTO matches (id1, id2, winner, tournament_id) VALUES (%s, %s, %s, %s);""", (id1, id2, result, tournament,))
+        query = "INSERT INTO matches (id1, id2, winner, tournament_id) VALUES (%s, %s, %s, %s);"
+        data = (bleach.clean(id1), bleach.clean(id2), bleach.clean(result), bleach.clean(tournament),)
+        c.execute(query, data)
     db.commit()
     db.close
  
@@ -149,8 +169,9 @@ def swissPairings(tournament):
         id2: the second player's unique id
         name2: the second player's name
     """
-    db = connect()
-    c = db.cursor()
+    connect()
+
+    tournament = bleach.clean(tournament)
 
     def getIds(tournament):
         """Returns a list of the ids taking part in a tournament in the order they appear in the
@@ -159,7 +180,9 @@ def swissPairings(tournament):
         Args:
             tournament: the id number of the tournament taking place
         """
-        c.execute('SELECT id FROM standings WHERE tournament_id = %s;', (tournament,))
+        query = 'SELECT id FROM standings WHERE tournament_id = %s;'
+        data = (tournament,)
+        c.execute(query, data)
         rows = c.fetchall()
         ids = []
         for row in rows:
@@ -173,7 +196,9 @@ def swissPairings(tournament):
             player: the id number of the player
             tournament: the id number of the tournament taking place
         """
-        c.execute('SELECT wins FROM standings WHERE id = %s AND tournament_id = %s;', (player, tournament,))
+        query = 'SELECT wins FROM standings WHERE id = %s AND tournament_id = %s;'
+        data = (player, tournament,)
+        c.execute(query, data)
         row = c.fetchone()
         return row[0]
 
@@ -185,7 +210,9 @@ def swissPairings(tournament):
             winDiff: the difference of wins in relation to the player
             tournament: the id number of the tournament taking place
         """
-        c.execute('SELECT id FROM standings WHERE wins = %s AND tournament_id = %s;', (wins + winDiff, tournament,))
+        query = 'SELECT id FROM standings WHERE wins = %s AND tournament_id = %s;'
+        data = (wins + winDiff, tournament,)
+        c.execute(query, data)
         rows = c.fetchall()
         return rows
     
@@ -198,11 +225,11 @@ def swissPairings(tournament):
         playedOpponents = {}
         ids = getIds(tournament)
         for x in ids:
-            c.execute('SELECT opponent FROM opponents WHERE player = %s AND tournament_id = %s;', (x, tournament,))
+            query = 'SELECT opponent FROM opponents WHERE player = %s AND tournament_id = %s;'
+            data = (x, tournament,)
+            c.execute(query, data)
             rows = c.fetchall()
-            playedOpponents[x] = []
-            for row in rows:
-                playedOpponents[x].append(row[0])
+            playedOpponents[x] = [row[0] for row in rows]
         return playedOpponents
 
     def getPlayerNames(tournament):
@@ -212,7 +239,9 @@ def swissPairings(tournament):
             tournament: the id number of the tournament taking place
         """
         players = {}
-        c.execute('SELECT id, name FROM standings WHERE tournament_id = %s;', (tournament,))
+        query = 'SELECT id, name FROM standings WHERE tournament_id = %s;'
+        data = (tournament,)
+        c.execute(query, data)
         rows = c.fetchall()
         for row in rows:
             players[row[0]] = row[1]
@@ -228,11 +257,15 @@ def swissPairings(tournament):
         #and then registers it in the tournament, else it just registers it in the tournament
         if len(rows) == 0:
             c.execute('INSERT INTO players VALUES (0, \'bye\');')
-            c.execute('INSERT INTO tournament_participants (player_id, tournament_id) VALUES (0, %s);', (tournament,))
+            query = 'INSERT INTO tournament_participants (player_id, tournament_id) VALUES (0, %s);'
+            data = (tournament,)
+            c.execute(query, data)
             db.commit()
             ids = getIds(tournament)
         else:
-            c.execute('INSERT INTO tournament_participants (player_id, tournament_id) VALUES (0, %s);', (tournament,))
+            query = 'INSERT INTO tournament_participants (player_id, tournament_id) VALUES (0, %s);'
+            data = (tournament,)
+            c.execute(query, data)
             db.commit()
             ids = getIds(tournament)
 
@@ -295,4 +328,5 @@ def swissPairings(tournament):
             n2 -= 1
         count += 1
     return pairs
+    db.close
 

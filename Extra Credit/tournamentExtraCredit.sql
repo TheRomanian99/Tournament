@@ -6,6 +6,10 @@
 -- You can write comments in this file by starting them with two dashes, like
 -- these lines here.
 
+DROP DATABASE IF EXISTS tournament;
+CREATE DATABASE tournament;
+\c tournament
+
 CREATE TABLE players (id SERIAL PRIMARY KEY,
 					  name TEXT);
 
@@ -15,20 +19,14 @@ CREATE TABLE tournaments (id SERIAL PRIMARY KEY,
 CREATE TABLE matches (id SERIAL PRIMARY KEY,
 					  id1 INT NOT NULL REFERENCES players (id),
 					  id2 INT NOT NULL REFERENCES players (id),
-					  winner INT REFERENCES players (id),
-					  -- if winner = NULL then game is a tie
-					  tournament_id INT NOT NULL REFERENCES tournaments (id));
+					  winner INT REFERENCES players (id), -- if winner = NULL then game is a tie
+					  tournament_id INT NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE);
 
 CREATE TABLE tournament_participants (id SERIAL PRIMARY KEY,
-									  player_id INT NOT NULL REFERENCES players (id),
-									  tournament_id INT NOT NULL REFERENCES tournaments (id));
+									  player_id INT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
+									  tournament_id INT NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE);
 
 
-
--- SELECT id, COUNT(*) as matches FROM (SELECT id1 AS id FROM matches UNION ALL SELECT id2 FROM matches WHERE matches.tournament_id = %s) AS a GROUP BY id;
--- SELECT COUNT (*) AS wins FROM matches GROUP BY winner
-
--- create view to see how many matches each participant has played;
 CREATE VIEW games_played AS
 SELECT tournament_participants.player_id AS id, COUNT(foo.id) AS matches, foo.tournament_id AS tournament_id
 FROM tournament_participants
@@ -60,7 +58,6 @@ INNER JOIN players
 ON games_played.id = players.id
 ORDER BY points DESC, wins DESC;
 
---create view to see which opponents each player has played
 CREATE VIEW opponents AS
 SELECT matches.id1 AS player, matches.id2 AS opponent, matches.tournament_id AS tournament_id
 FROM matches
