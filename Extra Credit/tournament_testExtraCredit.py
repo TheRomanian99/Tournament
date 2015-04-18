@@ -149,7 +149,7 @@ def testReportMatches():
             raise ValueError("Each player should have one match recorded.")
         if i in id1 and w != 1 and p != 3:
             raise ValueError("Each match winner should have one win recorded with 3 points.")
-        if i in (id3, id4) and w!= 0 p != 1:
+        if i in (id3, id4) and w!= 0 and p != 1:
             raise ValueError("Each drawing player should have 0 wins with 1 point.")
         elif i in (id2, id3, id4) and w != 0:
             raise ValueError("Each match loser should have zero wins recorded.")
