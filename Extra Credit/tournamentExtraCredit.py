@@ -169,7 +169,6 @@ def swissPairings(tournament):
         id2: the second player's unique id
         name2: the second player's name
     """
-    connect()
 
     tournament = bleach.clean(tournament)
 
@@ -180,6 +179,7 @@ def swissPairings(tournament):
         Args:
             tournament: the id number of the tournament taking place
         """
+        connect()
         query = 'SELECT id FROM standings WHERE tournament_id = %s;'
         data = (tournament,)
         c.execute(query, data)
@@ -188,6 +188,7 @@ def swissPairings(tournament):
         for row in rows:
             ids.append(row[0])
         return ids
+        db.close
 
     def getWins(player, tournament):
         """Returns the number of wins a player has in a tournament
@@ -196,11 +197,13 @@ def swissPairings(tournament):
             player: the id number of the player
             tournament: the id number of the tournament taking place
         """
+        connect()
         query = 'SELECT wins FROM standings WHERE id = %s AND tournament_id = %s;'
         data = (player, tournament,)
         c.execute(query, data)
         row = c.fetchone()
         return row[0]
+        db.close
 
     def getPossiblePairs(wins, winDiff, tournament):
         """Returns a list of the ids taking part in a tournament that have a certain number of wins difference
@@ -210,11 +213,13 @@ def swissPairings(tournament):
             winDiff: the difference of wins in relation to the player
             tournament: the id number of the tournament taking place
         """
+        connect()
         query = 'SELECT id FROM standings WHERE wins = %s AND tournament_id = %s;'
         data = (wins + winDiff, tournament,)
         c.execute(query, data)
         rows = c.fetchall()
         return rows
+        db.close
     
     def getPlayedOpponents(tournament):
         """Returns a dictionary of the ids taking part in a tournament and the opponents they have played
@@ -222,6 +227,7 @@ def swissPairings(tournament):
         Args:
             tournament: the id number of the tournament taking place
         """
+        connect()
         playedOpponents = {}
         ids = getIds(tournament)
         for x in ids:
@@ -231,6 +237,7 @@ def swissPairings(tournament):
             rows = c.fetchall()
             playedOpponents[x] = [row[0] for row in rows]
         return playedOpponents
+        db.close
 
     def getPlayerNames(tournament):
         """Returns a dictionary of the ids and names taking part in a tournament
@@ -238,6 +245,7 @@ def swissPairings(tournament):
         Args:
             tournament: the id number of the tournament taking place
         """
+        connect()
         players = {}
         query = 'SELECT id, name FROM standings WHERE tournament_id = %s;'
         data = (tournament,)
@@ -246,11 +254,13 @@ def swissPairings(tournament):
         for row in rows:
             players[row[0]] = row[1]
         return players
+        db.close
         
     ids = getIds(tournament)
 
     #adds a 'bye' to the tournament is there is an uneven number of players
     if len(ids) % 2 != 0:
+        connect()
         c.execute('SELECT id FROM players WHERE id = 0;')
         rows = c.fetchall()
         #registers 'bye' as a player with id of 0 if it doesn't already exist in the players table
@@ -268,6 +278,7 @@ def swissPairings(tournament):
             c.execute(query, data)
             db.commit()
             ids = getIds(tournament)
+        db.close
 
     
     

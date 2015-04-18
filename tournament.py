@@ -106,41 +106,41 @@ def swissPairings():
         name2: the second player's name
     """
     
-    connect()
 
     def getIds():
-        """Returns a list of the ids taking part in a tournament in the order
-        they appear in the standings table
-        """
+        """Returns a list of the ids in the order they appear in the standings table"""
+        connect()
         c.execute('SELECT id FROM standings;')
         rows = c.fetchall()
         ids = []
         for row in rows:
             ids.append(row[0])
         return ids
+        db.close
 
     def getWins(player):
-        """Returns the number of wins a player has in a tournament"""
+        """Returns the number of wins a player has"""
+        connect()
         query = 'SELECT wins FROM standings WHERE id = %s;'
         data = (player,)
         c.execute(query, data)
         row = c.fetchone()
         return row[0]
+        db.close
 
     def getPossiblePairs(wins, winDiff):
-        """Returns a list of the ids taking part in a tournament that have
-        a certain number of wins difference
-        """
+        """Returns a list of the ids that have a certain number of win difference"""
+        connect()
         query = 'SELECT id FROM standings WHERE wins = %s;'
         data = (wins + winDiff,)
         c.execute(query, data)
         rows = c.fetchall()
         return rows
+        db.close
     
     def getPlayedOpponents():
-        """Returns a dictionary of the ids taking part in a tournament and
-        the opponents they have played
-        """
+        """Returns a dictionary of the ids and the opponents they have played"""
+        connect()
         playedOpponents = {}
         ids = getIds()
         for x in ids:
@@ -150,15 +150,18 @@ def swissPairings():
             rows = c.fetchall()
             playedOpponents[x] = [row[0] for row in rows]
         return playedOpponents
+        db.close
 
     def getPlayerNames():
-        """Returns a dictionary of the ids and names taking part in a tournament"""
+        """Returns a dictionary of the ids and names"""
+        connect()
         players = {}
         c.execute('SELECT * FROM players;')
         rows = c.fetchall()
         for row in rows:
             players[row[0]] = row[1]
         return players
+        db.close
         
     
     possiblePairings = {}
